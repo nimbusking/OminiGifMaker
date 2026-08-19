@@ -1,6 +1,5 @@
 package com.ominigifmaker.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,26 +15,19 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ominigifmaker.state.AppStrings
 import com.ominigifmaker.state.TaskStatus
 import com.ominigifmaker.ui.LocalAppStrings
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.jetbrains.skia.Image as SkiaImage
-import java.io.File
 
 /**
  * 跨模块共享的结果展示区（三态）。
  *
- * 根据 [TaskStatus] 渲染：处理中（加载态）、成功（展示处理后的 GIF）、失败（错误提示）。
+ * 根据 [TaskStatus] 渲染：处理中（加载态）、成功（动画预览处理后的 GIF）、失败（错误提示）。
  */
 @Composable
 fun ResultPreview(taskStatus: TaskStatus, modifier: Modifier = Modifier) {
@@ -73,7 +65,7 @@ fun ResultPreview(taskStatus: TaskStatus, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SuccessContent(strings: com.ominigifmaker.state.AppStrings, outputPath: String) {
+private fun SuccessContent(strings: AppStrings, outputPath: String) {
     Column {
         Text(
             text = "${strings.outputFile}: $outputPath",
@@ -83,26 +75,15 @@ private fun SuccessContent(strings: com.ominigifmaker.state.AppStrings, outputPa
         )
         Spacer(Modifier.height(8.dp))
 
-        val bitmap by produceState<ImageBitmap?>(initialValue = null, outputPath) {
-            value = withContext(Dispatchers.IO) {
-                runCatching {
-                    SkiaImage.makeFromEncoded(File(outputPath).readBytes()).toComposeImageBitmap()
-                }.getOrNull()
-            }
-        }
-        val preview = bitmap
-        if (preview != null) {
-            Box(
-                modifier = Modifier.fillMaxWidth().height(220.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    bitmap = preview,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                )
-            }
+        Box(
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            AnimatedGifPreview(
+                path = outputPath,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
         }
     }
 }

@@ -7,6 +7,17 @@ enum class FramesConverter(val label: String) {
     IMAGEMAGICK_COLOR256("ImageMagick (-color 256)"),
 }
 
+/**
+ * 帧网格中的单帧条目。
+ *
+ * - [path]：帧图像文件路径（拆帧后的 PNG）。
+ * - [skipped]：是否被标记为跳过，合成 GIF 时被剔除。
+ */
+data class FrameEntry(
+    val path: String,
+    val skipped: Boolean = false,
+)
+
 /** Frames 模块表单配置。 */
 data class FramesConfig(
     /** 帧图像文件路径序列（按顺序）。 */

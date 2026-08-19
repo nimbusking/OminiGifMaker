@@ -205,15 +205,30 @@ class AppStrings(val lang: Language) {
 
     // ---- Frames ----
     val framesTitle: String get() = t("帧管理与合成", "Frames")
-    val uploadFrames: String get() = t("+ 上传更多帧", "+ Upload more frames")
-    val noFrames: String get() = t("尚未添加帧图像。点击上方按钮选择图像文件（PNG/JPG/GIF/WebP 等）。", "No frames yet. Click the button above to add image files (PNG/JPG/GIF/WebP, etc.).")
-    val framesCount: String get() = t("已添加", "Added")
+    val noFrames: String get() = t("尚未上传 GIF。点击上方按钮选择 GIF 文件，以展示其所有帧。", "No GIF uploaded yet. Click the button above to choose a GIF and show all of its frames.")
+    val framesCount: String get() = t("总帧数", "Total frames")
+    val skippedCount: String get() = t("已跳过", "Skipped")
+    val skip: String get() = t("跳过", "Skip")
+    val enable: String get() = t("启用", "Enable")
+    val copy: String get() = t("拷贝", "Copy")
     val remove: String get() = t("移除", "Remove")
     val clearFrames: String get() = t("清空", "Clear all")
+    val gifOptions: String get() = t("GIF 选项", "GIF options")
     val delayTime: String get() = t("Delay time（全局延迟，1/100 秒，留空用各帧默认）", "Delay time (global, 1/100 s, empty = per-frame default)")
     val useGlobalColormap: String get() = t("Use global colormap", "Use global colormap")
     val converter: String get() = t("Converter", "Converter")
     val makeGif: String get() = t("Make a GIF!", "Make a GIF!")
+
+    // ---- Frames：Toggle a range of frames ----
+    val toggleRangeTitle: String get() = t("切换一系列帧", "Toggle a range of frames")
+    val from: String get() = t("从", "From")
+    val to: String get() = t("到", "To")
+    val every: String get() = t("每", "Every")
+    val everySuffix: String get() = t("帧", "frames")
+    val skipRange: String get() = t("跳过范围", "Skip range")
+    val enableRange: String get() = t("启用范围", "Enable range")
+    val skipEveryNth: String get() = t("跳过每第N个", "Skip every N-th")
+    val enableEveryNth: String get() = t("启用每第N个", "Enable every N-th")
 
     fun framesConverterLabel(c: FramesConverter): String = if (zh) {
         when (c) {
@@ -277,6 +292,8 @@ class AppStrings(val lang: Language) {
 
     val errGifskiExplode: String get() = t("拆帧失败。", "Frame extraction failed.")
     val errGifskiNoFrames: String get() = t("拆帧失败：未生成帧文件。", "Frame extraction failed: no frames generated.")
+    val errExplode: String get() = t("拆帧失败。", "Frame extraction failed.")
+    val errExplodeNoFrames: String get() = t("拆帧失败：未生成帧文件。", "Frame extraction failed: no frames generated.")
     val errGifskiEncode: String get() = t("gifski 编码失败。", "gifski encoding failed.")
     val errVipsSize: String get() = t("无法读取帧尺寸。", "Cannot read frame dimensions.")
     val errVipsJoin: String get() = t("libvips 拼接失败。", "libvips join failed.")

@@ -25,6 +25,13 @@ object FramesCommandBuilder {
         return null
     }
 
+    /** 将 GIF 拆分为 PNG 帧序列（`-coalesce` 解除优化并铺满每帧）。 */
+    fun buildExplode(input: File, outputPattern: File): EngineCommand =
+        EngineCommand(
+            EngineType.IMAGEMAGICK,
+            listOf(input.absolutePath, "-coalesce", outputPattern.absolutePath),
+        )
+
     /** ImageMagick 单命令合成。 */
     fun buildImageMagick(frames: List<String>, output: File, config: FramesConfig): EngineCommand {
         val args = mutableListOf<String>()
@@ -39,17 +46,29 @@ object FramesCommandBuilder {
         return EngineCommand(EngineType.IMAGEMAGICK, args)
     }
 
-    /** libvips 第一步：纵向拼接帧序列。 */
+    /** libvips 第一步：纵向拼接帧序列。libvips 在 Windows 会把路径中的反斜杠当转义，须统一为正斜杠。 */
     fun buildVipsJoin(frames: List<String>, joinedOutput: File): EngineCommand =
         EngineCommand(
             EngineType.LIBVIPS,
-            listOf("arrayjoin", frames.joinToString(" "), joinedOutput.absolutePath, "--across", "1"),
+            listOf(
+                "arrayjoin",
+                frames.joinToString(" ") { it.replace('\\', '/') },
+                joinedOutput.absolutePath.replace('\\', '/'),
+                "--across",
+                "1",
+            ),
         )
 
-    /** libvips 第二步：按页高保存为 GIF。 */
+    /** libvips 第二步：按页高保存为 GIF（路径同样归一化为正斜杠）。 */
     fun buildVipsSave(joinedInput: File, output: File, pageHeight: Int): EngineCommand =
         EngineCommand(
             EngineType.LIBVIPS,
-            listOf("gifsave", joinedInput.absolutePath, output.absolutePath, "--page-height", pageHeight.toString()),
+            listOf(
+                "gifsave",
+                joinedInput.absolutePath.replace('\\', '/'),
+                output.absolutePath.replace('\\', '/'),
+                "--page-height",
+                pageHeight.toString(),
+            ),
         )
 }
