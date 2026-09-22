@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.ominigifmaker.core.command.CommandRunner
 import com.ominigifmaker.core.command.ResizeCommandBuilder
 import com.ominigifmaker.model.ResizeConfig
+import com.ominigifmaker.model.ResizeMethod
 import com.ominigifmaker.state.AppState
 import com.ominigifmaker.state.AppStrings
 import com.ominigifmaker.state.TaskStatus
@@ -42,6 +43,7 @@ fun ResizeTab(appState: AppState, modifier: Modifier = Modifier) {
     val height by state.height.collectAsState()
     val percentage by state.percentage.collectAsState()
     val method by state.method.collectAsState()
+    val aspectMode by state.aspectMode.collectAsState()
     val rememberSettings by state.rememberSettings.collectAsState()
     val sourcePath by appState.sourceGifPath.collectAsState()
 
@@ -83,13 +85,27 @@ fun ResizeTab(appState: AppState, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(),
         )
 
-        DropdownSelector(
-            label = strings.resizeMethod,
-            options = com.ominigifmaker.model.ResizeMethod.entries.toList(),
-            selected = method,
-            labelOf = strings::resizeMethodLabel,
-            onSelected = state::setMethod,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            DropdownSelector(
+                label = strings.resizeMethod,
+                options = ResizeMethod.entries.toList(),
+                selected = method,
+                labelOf = strings::resizeMethodLabel,
+                onSelected = state::setMethod,
+                modifier = Modifier.weight(1f),
+            )
+            // Change canvas size 与宽高比无关，隐藏；其余引擎按支持项过滤。
+            if (method != ResizeMethod.CHANGE_CANVAS) {
+                DropdownSelector(
+                    label = strings.resizeAspectMode,
+                    options = method.supportedAspectModes,
+                    selected = aspectMode,
+                    labelOf = strings::resizeAspectLabel,
+                    onSelected = state::setAspectMode,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = rememberSettings, onCheckedChange = state::setRememberSettings)

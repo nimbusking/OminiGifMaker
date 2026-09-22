@@ -5,6 +5,7 @@ import com.ominigifmaker.model.CropBackground
 import com.ominigifmaker.model.CropMethod
 import com.ominigifmaker.model.FramesConverter
 import com.ominigifmaker.model.OptimizeMethod
+import com.ominigifmaker.model.ResizeAspectMode
 import com.ominigifmaker.model.ResizeMethod
 import com.ominigifmaker.model.RotateMode
 import com.ominigifmaker.model.SpeedMode
@@ -84,6 +85,19 @@ class AppStrings(val lang: Language) {
             ResizeMethod.IMAGEMAGICK -> "ImageMagick"
             ResizeMethod.IMAGEMAGICK_COALESCE -> "ImageMagick + coalesce（解除优化）"
             ResizeMethod.CHANGE_CANVAS -> "修改画布尺寸（加边距不缩放）"
+        }
+    } else {
+        m.label
+    }
+
+    val resizeAspectMode: String get() = t("宽高比不匹配时", "If the aspect ratio does not match")
+
+    fun resizeAspectLabel(m: ResizeAspectMode): String = if (zh) {
+        when (m) {
+            ResizeAspectMode.CENTER_CROP -> "居中裁剪以适配"
+            ResizeAspectMode.STRETCH -> "拉伸以适配"
+            ResizeAspectMode.FORCE_ORIGINAL -> "保持原始宽高比"
+            ResizeAspectMode.TRANSPARENT_PAD -> "添加透明填充"
         }
     } else {
         m.label

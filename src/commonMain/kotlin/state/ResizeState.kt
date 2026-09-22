@@ -1,5 +1,6 @@
 package com.ominigifmaker.state
 
+import com.ominigifmaker.model.ResizeAspectMode
 import com.ominigifmaker.model.ResizeConfig
 import com.ominigifmaker.model.ResizeMethod
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,12 @@ class ResizeState(private val settings: KeyValueStore? = null) {
     )
     val method: StateFlow<ResizeMethod> = _method.asStateFlow()
 
+    private val _aspectMode = MutableStateFlow(
+        runCatching { ResizeAspectMode.valueOf(settings?.getString(KEY_ASPECT_MODE, "") ?: "") }
+            .getOrDefault(ResizeAspectMode.STRETCH)
+    )
+    val aspectMode: StateFlow<ResizeAspectMode> = _aspectMode.asStateFlow()
+
     private val _rememberSettings = MutableStateFlow(remembered)
     val rememberSettings: StateFlow<Boolean> = _rememberSettings.asStateFlow()
 
@@ -40,6 +47,7 @@ class ResizeState(private val settings: KeyValueStore? = null) {
             height = _height.value,
             percentage = _percentage.value,
             method = _method.value,
+            aspectMode = _aspectMode.value,
         )
 
     fun setWidth(v: String) {
@@ -59,6 +67,16 @@ class ResizeState(private val settings: KeyValueStore? = null) {
 
     fun setMethod(m: ResizeMethod) {
         _method.value = m
+        // 切到不支持当前宽高比策略的引擎时回退到 Stretch（如 gifsicle 仅支持 Stretch）。
+        // Change canvas size 与策略无关，跳过以保留用户原选择。
+        if (m != ResizeMethod.CHANGE_CANVAS && _aspectMode.value !in m.supportedAspectModes) {
+            _aspectMode.value = ResizeAspectMode.STRETCH
+        }
+        persist()
+    }
+
+    fun setAspectMode(m: ResizeAspectMode) {
+        _aspectMode.value = m
         persist()
     }
 
@@ -79,6 +97,7 @@ class ResizeState(private val settings: KeyValueStore? = null) {
         s.putString(KEY_HEIGHT, _height.value)
         s.putString(KEY_PERCENTAGE, _percentage.value)
         s.putString(KEY_METHOD, _method.value.name)
+        s.putString(KEY_ASPECT_MODE, _aspectMode.value.name)
     }
 
     private fun clearFields(s: KeyValueStore) {
@@ -86,6 +105,7 @@ class ResizeState(private val settings: KeyValueStore? = null) {
         s.putString(KEY_HEIGHT, "")
         s.putString(KEY_PERCENTAGE, "")
         s.putString(KEY_METHOD, "")
+        s.putString(KEY_ASPECT_MODE, "")
     }
 
     private companion object {
@@ -93,6 +113,7 @@ class ResizeState(private val settings: KeyValueStore? = null) {
         const val KEY_HEIGHT = "resize.height"
         const val KEY_PERCENTAGE = "resize.percentage"
         const val KEY_METHOD = "resize.method"
+        const val KEY_ASPECT_MODE = "resize.aspectMode"
         const val KEY_REMEMBER = "resize.remember"
     }
 }
