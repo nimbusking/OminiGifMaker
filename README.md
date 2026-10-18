@@ -51,7 +51,7 @@ src/
     └── resources/
         ├── binaries/
         │   ├── windows/                       # x86_64 平铺（已内嵌，约 250MB）
-        │   ├── macos/{aarch64,x86_64}/        # 待补齐
+        │   ├── macos/aarch64/                # 仅 Apple Silicon（Intel 已弃）
         │   └── linux/{aarch64,x86_64}/        # 待补齐
         └── icons/                             # 应用图标（.ico/.icns/.png）
 ```
@@ -115,7 +115,7 @@ src/
 
 说明：
 
-- **架构**：macOS（arm64 / x86_64）与 Linux（aarch64 / x86_64）二进制互不通用，需按 `binaries/<os>/<arch>/` 分子目录（macOS 亦可改用 universal2 二进制）。
+- **架构**：macOS 仅出 arm64（Apple Silicon，Intel 已停止构建）；Linux 仍按 aarch64 / x86_64 分子目录。二进制互不通用，需按 `binaries/<os>/<arch>/` 分子目录。
 - **动态依赖**：Windows 靠可执行文件同目录的 DLL 即可；macOS/Linux 默认不搜索可执行文件所在目录，动态链接引擎（libvips、非静态 ImageMagick）依赖 `ProcessRunner` 注入的 `DYLD_LIBRARY_PATH` / `LD_LIBRARY_PATH` 加载。libvips 保持共享库形态（LGPL 要求可替换）。
 - **FFmpeg**：务必选用含 `drawtext` 滤镜与 libfreetype 的构建，否则 Reverse「计时器叠加」在 mac/Linux 静默失效。
 - **gifski**：AGPL-3.0 要求最严，分发需随附对应版本源码 tag。

@@ -25,11 +25,7 @@ jobs:
             arch: x86_64
             os_dir: linux
             fetch: true
-          - name: macos-x86_64
-            os: macos-13
-            arch: x86_64
-            os_dir: macos
-            fetch: true
+          # macOS 仅出 arm64：Intel(macos-13) runner 已退役、长期排不到机器，弃 Intel 支持
           - name: macos-aarch64
             os: macos-14
             arch: aarch64
