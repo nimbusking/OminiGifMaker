@@ -1,0 +1,72 @@
+name: Build installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            arch: x86_64
+            os_dir: windows
+            fetch: false   # Windows 引擎二进制已入库，直接打包
+          - name: linux-x86_64
+            os: ubuntu-latest
+            arch: x86_64
+            os_dir: linux
+            fetch: true
+          - name: macos-x86_64
+            os: macos-13
+            arch: x86_64
+            os_dir: macos
+            fetch: true
+          - name: macos-aarch64
+            os: macos-14
+            arch: aarch64
+            os_dir: macos
+            fetch: true
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Make gradlew executable
+        shell: bash
+        run: chmod +x gradlew
+
+      - name: Fetch engines
+        if: matrix.fetch
+        shell: bash
+        env:
+          DEST: src/desktopMain/resources/binaries/${{ matrix.os_dir }}/${{ matrix.arch }}
+        run: bash scripts/fetch-engines-${{ matrix.os_dir }}.sh "${{ matrix.arch }}" "$DEST"
+
+      - name: Package installer
+        shell: bash
+        run: ./gradlew package --console=plain
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OminiGifMaker-${{ matrix.name }}
+          path: build/compose/binaries/main
+          if-no-files-found: error

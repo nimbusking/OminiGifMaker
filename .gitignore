@@ -5,3 +5,9 @@ build/
 *.iml
 local.properties
 .DS_Store
+
+# 引擎二进制：Windows 已入库；macOS/Linux 由 CI 在构建时拉取，不入库
+src/desktopMain/resources/binaries/macos/*
+src/desktopMain/resources/binaries/linux/*
+!src/desktopMain/resources/binaries/macos/.gitkeep
+!src/desktopMain/resources/binaries/linux/.gitkeep

@@ -1,0 +1,4 @@
+# 脚本与 CI 配置强制 LF，避免 Windows 下 autocrlf 在 Linux/macOS runner 上产生 \r
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
