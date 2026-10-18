@@ -109,7 +109,7 @@ src/
 | --- | --- | --- | --- | --- |
 | FFmpeg + ffprobe | gyan.dev GPL 静态 | evermeet.cx 静态（需含 `drawtext`/libfreetype） | johnvansickle GPL 静态 | GPL v3 |
 | Gifsicle | eternallybored.org win64 | Homebrew / 源码静态编译 | 发行版包 / 源码静态编译 | GPL-2.0 |
-| ImageMagick 7 `magick` | portable Q16 静态 | 官网 portable static / 源码静态编译 | 官网 static / 源码静态编译 | ImageMagick License |
+| ImageMagick 7 `magick` | portable Q16 静态 | 官网 portable static / 源码静态编译 | GitHub release AppImage（解包） | ImageMagick License |
 | gifski | npm `gifski` 包 CLI | 官方 release CLI / `cargo install` | `cargo install` / release musl | AGPL-3.0 |
 | libvips `vips` | build-win64-mxe（带 DLL） | Homebrew / MacPorts（动态链 dylib） | `libvips-tools`（动态链 .so） | LGPL-2.1 |
 

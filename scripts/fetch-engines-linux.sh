@@ -28,15 +28,29 @@ cp "$FF_DIR/ffprobe" "$DEST/ffprobe"
 sudo apt-get update -qq && sudo apt-get install -y -qq gifsicle
 cp "$(command -v gifsicle)" "$DEST/gifsicle"
 
-# 3) ImageMagick 7（magick）：官方静态构建，连同 *.xml / sRGB.icc 平铺
-case "$ARCH" in
-  x86_64)  IM_TAR="ImageMagick-x86_64-pc-linux-gnu.tar.gz" ;;
-  aarch64) IM_TAR="ImageMagick-aarch64-pc-linux-gnu.tar.gz" ;;  # 若 404，需源码静态编译
-esac
-curl -fsSL "https://imagemagick.org/archive/binaries/${IM_TAR}" -o "$STAGE/im.tar.gz"
-tar -xzf "$STAGE/im.tar.gz" -C "$STAGE"
-cp "$(find "$STAGE" -type f -name magick | head -1)" "$DEST/magick"
-find "$STAGE" -type f \( -name '*.xml' -o -name '*.icc' \) -exec cp {} "$DEST/" \;
+# 3) ImageMagick 7（magick）：官方 Linux 仅提供 AppImage（GitHub release），解包出 magick + 依赖 + 配置
+if [ "$ARCH" != "x86_64" ]; then
+  echo "ImageMagick AppImage 仅提供 x86_64；${ARCH} 需源码静态编译" >&2
+  exit 1
+fi
+IM_VER="7.1.2-34"
+curl -fsSL "https://github.com/ImageMagick/ImageMagick/releases/download/${IM_VER}/ImageMagick-${IM_VER}-gcc-x86_64.AppImage" \
+  -o "$STAGE/magick.AppImage"
+chmod +x "$STAGE/magick.AppImage"
+( cd "$STAGE" && ./magick.AppImage --appimage-extract >/dev/null )
+SR="$(find "$STAGE" -maxdepth 1 -type d -name 'squashfs-root*' | head -1)"
+MAGICK_BIN="$(find "$SR" -type f -name magick | head -1)"
+[ -n "$MAGICK_BIN" ] || { echo "magick binary not found in AppImage" >&2; exit 1; }
+cp "$MAGICK_BIN" "$DEST/magick"
+# AppImage 自带全部委托库（除 libc），全部平铺；跳过关键系统库，避免 LD_LIBRARY_PATH 误覆盖
+find "$SR" -type f -name '*.so*' | while read -r so; do
+  case "$(basename "$so")" in
+    libc.so*|libm.so*|libpthread.so*|libdl.so*|ld-linux*.so*) ;;
+    *) cp "$so" "$DEST/" ;;
+  esac
+done
+# 配置 *.xml + sRGB.icc
+find "$SR" -type f \( -name '*.xml' -o -name '*.icc' \) -exec cp {} "$DEST/" \;
 
 # 4) gifski：npm gifski 包（与 Windows 同源，v1.7.1）
 npm pack gifski@1.7.1 --pack-destination "$STAGE" >/dev/null
