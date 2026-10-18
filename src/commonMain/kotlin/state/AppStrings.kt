@@ -290,6 +290,7 @@ class AppStrings(val lang: Language) {
     val errResizeEmpty: String get() = t("请至少填写 Width / Height / Percentage 之一。", "Fill in at least one of Width / Height / Percentage.")
     val errCropIncomplete: String get() = t("请完整填写 Left / Top / Width / Height，或勾选 Autocrop。", "Fill in Left / Top / Width / Height, or check Autocrop.")
     val errCropPositive: String get() = t("Width / Height 必须为正数。", "Width / Height must be positive.")
+    val errCropBounds: String get() = t("裁剪区域超出原图范围。", "Crop area exceeds the source image bounds.")
     val errRotateAngle: String get() = t("请输入有效的自定义角度（整数）。", "Enter a valid custom angle (integer).")
     val errRotateEmpty: String get() = t("请选择旋转或翻转操作。", "Choose a rotation or flip operation.")
     val errReverseLoop: String get() = t("循环次数必须为正整数（留空为无限循环）。", "Loop count must be a positive integer (empty = infinite).")

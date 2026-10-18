@@ -1,9 +1,11 @@
 package com.ominigifmaker.state
 
+import com.ominigifmaker.model.CROP_MIN_SIZE
 import com.ominigifmaker.model.CropAspectRatio
 import com.ominigifmaker.model.CropBackground
 import com.ominigifmaker.model.CropConfig
 import com.ominigifmaker.model.CropMethod
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,12 +78,48 @@ class CropState(private val settings: KeyValueStore? = null) {
         persist()
     }
 
+    /** 当前裁剪矩形对应的源图路径，用于区分「新图加载」与「切回本 Tab」。 */
+    private var lastImagePath: String? = null
+
     /** 新图像加载后重置为整图裁剪。 */
     fun resetToFull(w: Int, h: Int) {
         _left.value = "0"
         _top.value = "0"
         _width.value = w.toString()
         _height.value = h.toString()
+    }
+
+    /** 仅当源图真正变化时重置为整图；同一源图切回本 Tab 时保留已拖动的矩形。 */
+    fun resetToFullIfNeeded(path: String, w: Int, h: Int) {
+        if (path == lastImagePath) return
+        lastImagePath = path
+        resetToFull(w, h)
+    }
+
+    /** 源图被清除后，允许再次选择同一路径时重新触发整图重置。 */
+    fun onSourceCleared() {
+        lastImagePath = null
+    }
+
+    /** 选中锁定比例后，保持左上角不动，按比例重算宽高并夹紧到图像范围内。 */
+    fun snapToAspect(ratio: Double?, imgW: Int, imgH: Int) {
+        if (ratio == null || ratio <= 0.0) return
+        val l = _left.value.trim().toIntOrNull()?.coerceIn(0, (imgW - CROP_MIN_SIZE).coerceAtLeast(0)) ?: 0
+        val t = _top.value.trim().toIntOrNull()?.coerceIn(0, (imgH - CROP_MIN_SIZE).coerceAtLeast(0)) ?: 0
+        val availW = (imgW - l).coerceAtLeast(CROP_MIN_SIZE)
+        val availH = (imgH - t).coerceAtLeast(CROP_MIN_SIZE)
+        val curW = _width.value.trim().toIntOrNull() ?: availW
+        var w = curW.coerceIn(CROP_MIN_SIZE, availW)
+        var h = (w / ratio).roundToInt().coerceAtLeast(CROP_MIN_SIZE)
+        if (h > availH) {
+            h = availH
+            w = (h * ratio).roundToInt().coerceAtLeast(CROP_MIN_SIZE)
+        }
+        _left.value = l.toString()
+        _top.value = t.toString()
+        _width.value = w.toString()
+        _height.value = h.toString()
+        persist()
     }
 
     fun setRememberSettings(v: Boolean) {

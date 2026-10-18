@@ -16,19 +16,26 @@ import java.io.File
  */
 object CropCommandBuilder {
 
-    /** 校验表单，返回错误信息或 null（通过）。 */
-    fun validate(config: CropConfig, lang: Language): String? {
+    /** 校验表单，返回错误信息或 null（通过）。[imgWidth]/[imgHeight] 提供时额外校验裁剪区域不越界。 */
+    fun validate(
+        config: CropConfig,
+        lang: Language,
+        imgWidth: Int? = null,
+        imgHeight: Int? = null,
+    ): String? {
         if (config.autocrop) return null
         val s = AppStrings(lang)
         val l = config.left.trim().toIntOrNull()
         val t = config.top.trim().toIntOrNull()
         val w = config.width.trim().toIntOrNull()
         val h = config.height.trim().toIntOrNull()
-        return when {
-            l == null || t == null || w == null || h == null -> s.errCropIncomplete
-            w <= 0 || h <= 0 -> s.errCropPositive
-            else -> null
+        if (l == null || t == null || w == null || h == null) return s.errCropIncomplete
+        if (w <= 0 || h <= 0) return s.errCropPositive
+        if (l < 0 || t < 0) return s.errCropBounds
+        if (imgWidth != null && imgHeight != null && (l + w > imgWidth || t + h > imgHeight)) {
+            return s.errCropBounds
         }
+        return null
     }
 
     fun build(input: File, output: File, config: CropConfig): EngineCommand =

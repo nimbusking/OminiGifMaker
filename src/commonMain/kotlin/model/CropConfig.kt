@@ -1,5 +1,8 @@
 package com.ominigifmaker.model
 
+/** 裁剪选框的最小边长（像素）。 */
+const val CROP_MIN_SIZE = 8
+
 /** Crop 模块的处理引擎。 */
 enum class CropMethod(val label: String) {
     GIFSICLE("Gifsicle"),

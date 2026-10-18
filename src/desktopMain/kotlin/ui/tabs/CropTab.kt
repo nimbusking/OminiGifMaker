@@ -18,25 +18,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -49,10 +41,10 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ominigifmaker.core.command.CommandRunner
 import com.ominigifmaker.core.command.CropCommandBuilder
+import com.ominigifmaker.model.CROP_MIN_SIZE
 import com.ominigifmaker.model.CropAspectRatio
 import com.ominigifmaker.model.CropBackground
 import com.ominigifmaker.model.CropConfig
@@ -61,6 +53,7 @@ import com.ominigifmaker.state.AppState
 import com.ominigifmaker.state.AppStrings
 import com.ominigifmaker.state.TaskStatus
 import com.ominigifmaker.ui.LocalAppStrings
+import com.ominigifmaker.ui.components.DropdownSelector
 import com.ominigifmaker.ui.components.NumberField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +82,30 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
     val rememberSettings by state.rememberSettings.collectAsState()
     val scope = rememberCoroutineScope()
 
+    // 解码首帧用于预览（GIF 各帧画布尺寸一致，首帧足够确定裁剪坐标）。
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, sourcePath) {
+        value = if (sourcePath == null) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    SkiaImage.makeFromEncoded(File(sourcePath).readBytes()).toComposeImageBitmap()
+                }.getOrNull()
+            }
+        }
+    }
+
+    // 仅当源图真正变化时重置为整图；同一源图切回本 Tab（Crossfade 重建）不重置。
+    LaunchedEffect(bitmap) {
+        val path = sourcePath
+        if (path == null) {
+            state.onSourceCleared()
+            return@LaunchedEffect
+        }
+        val bmp = bitmap ?: return@LaunchedEffect
+        state.resetToFullIfNeeded(path, bmp.width, bmp.height)
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -99,7 +116,7 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
         Text(strings.cropTitle, style = MaterialTheme.typography.titleLarge)
 
         CropPreview(
-            sourcePath = sourcePath,
+            bitmap = bitmap,
             background = background,
             dontScaleLarge = dontScaleLarge,
             lockAspect = lockAspect,
@@ -108,7 +125,6 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
             width = width.toIntOrNull() ?: 0,
             height = height.toIntOrNull() ?: 0,
             onRectChanged = state::setRect,
-            onResetToFull = state::resetToFull,
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -123,7 +139,10 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
             options = CropAspectRatio.entries.toList(),
             selected = lockAspect,
             labelOf = strings::cropAspectLabel,
-            onSelected = state::setLockAspect,
+            onSelected = { ratio ->
+                state.setLockAspect(ratio)
+                bitmap?.let { state.snapToAspect(ratio.ratio, it.width, it.height) }
+            },
         )
 
         DropdownSelector(
@@ -158,7 +177,16 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
         }
 
         Button(
-            onClick = { executeCrop(appState, sourcePath, state.config, scope) },
+            onClick = {
+                executeCrop(
+                    appState = appState,
+                    sourcePath = sourcePath,
+                    config = state.config,
+                    imgWidth = bitmap?.width,
+                    imgHeight = bitmap?.height,
+                    scope = scope,
+                )
+            },
             enabled = sourcePath != null,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -168,41 +196,8 @@ fun CropTab(appState: AppState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun <T> DropdownSelector(
-    label: String,
-    options: List<T>,
-    selected: T,
-    labelOf: (T) -> String,
-    onSelected: (T) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        Text(label, style = MaterialTheme.typography.labelLarge)
-        Box {
-            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(labelOf(selected), modifier = Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEach { opt ->
-                    DropdownMenuItem(
-                        text = { Text(labelOf(opt)) },
-                        onClick = {
-                            onSelected(opt)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-private const val MIN_CROP_SIZE = 8
-
-@Composable
 private fun CropPreview(
-    sourcePath: String?,
+    bitmap: ImageBitmap?,
     background: CropBackground,
     dontScaleLarge: Boolean,
     lockAspect: CropAspectRatio,
@@ -211,25 +206,8 @@ private fun CropPreview(
     width: Int,
     height: Int,
     onRectChanged: (Int, Int, Int, Int) -> Unit,
-    onResetToFull: (Int, Int) -> Unit,
 ) {
     val strings = LocalAppStrings.current
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, sourcePath) {
-        value = if (sourcePath == null) {
-            null
-        } else {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    SkiaImage.makeFromEncoded(File(sourcePath).readBytes()).toComposeImageBitmap()
-                }.getOrNull()
-            }
-        }
-    }
-
-    LaunchedEffect(bitmap) {
-        val bmp = bitmap ?: return@LaunchedEffect
-        onResetToFull(bmp.width, bmp.height)
-    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -273,6 +251,13 @@ private fun CropPreview(
         val selW = (width * scale).dp
         val selH = (height * scale).dp
 
+        // 拖拽会实时改写 left/top/width/height；用 rememberUpdatedState 让手势协程读到最新值，
+        // 而不把可变矩形作为 pointerInput 的 key（否则每次更新都会重启手势导致拖动被打断）。
+        val currentLeft by rememberUpdatedState(left)
+        val currentTop by rememberUpdatedState(top)
+        val currentWidth by rememberUpdatedState(width)
+        val currentHeight by rememberUpdatedState(height)
+
         Box(
             modifier = Modifier
                 .offset(selX, selY)
@@ -283,14 +268,14 @@ private fun CropPreview(
                     .fillMaxSize()
                     .border(2.dp, Color.White)
                     .background(Color.White.copy(alpha = 0.12f))
-                    .pointerInput(left, top, width, height, imgW, imgH, screenScale) {
+                    .pointerInput(imgW, imgH, screenScale) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
                             val dxImg = (dragAmount.x / screenScale).roundToInt()
                             val dyImg = (dragAmount.y / screenScale).roundToInt()
-                            val nl = (left + dxImg).coerceIn(0, (imgW - width).coerceAtLeast(0))
-                            val nt = (top + dyImg).coerceIn(0, (imgH - height).coerceAtLeast(0))
-                            onRectChanged(nl, nt, width, height)
+                            val nl = (currentLeft + dxImg).coerceIn(0, (imgW - currentWidth).coerceAtLeast(0))
+                            val nt = (currentTop + dyImg).coerceIn(0, (imgH - currentHeight).coerceAtLeast(0))
+                            onRectChanged(nl, nt, currentWidth, currentHeight)
                         }
                     },
             )
@@ -315,6 +300,11 @@ private fun BoxScope.CropHandle(
     ratio: Double?,
     onRectChanged: (Int, Int, Int, Int) -> Unit,
 ) {
+    val currentLeft by rememberUpdatedState(left)
+    val currentTop by rememberUpdatedState(top)
+    val currentWidth by rememberUpdatedState(width)
+    val currentHeight by rememberUpdatedState(height)
+
     val handleSize = 12.dp
     val half = handleSize / 2
     Box(
@@ -327,26 +317,63 @@ private fun BoxScope.CropHandle(
             .size(handleSize)
             .background(Color.White)
             .border(1.dp, Color.Black)
-            .pointerInput(left, top, width, height, imgW, imgH, screenScale, ratio) {
+            .pointerInput(imgW, imgH, screenScale, ratio) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
                     val dxImg = (dragAmount.x / screenScale).roundToInt()
                     val dyImg = (dragAmount.y / screenScale).roundToInt()
-                    var nl = left
-                    var nt = top
-                    var nw = width
-                    var nh = height
-                    when (alignment) {
-                        Alignment.TopStart -> { nl += dxImg; nw -= dxImg; nt += dyImg; nh -= dyImg }
-                        Alignment.TopEnd -> { nw += dxImg; nt += dyImg; nh -= dyImg }
-                        Alignment.BottomStart -> { nl += dxImg; nw -= dxImg; nh += dyImg }
-                        else -> { nw += dxImg; nh += dyImg }
-                    }
+                    val l = currentLeft
+                    val t = currentTop
+                    val w = currentWidth
+                    val h = currentHeight
+                    var nl = l
+                    var nt = t
+                    var nw = w
+                    var nh = h
+
                     if (ratio != null) {
-                        nh = (nw / ratio).roundToInt()
+                        // 锁定比例：保持对角锚点固定，按 min(rawW, rawH*ratio) 取宽、反推高。
+                        val anchorX: Int
+                        val anchorY: Int
+                        val rawW: Int
+                        val rawH: Int
+                        when (alignment) {
+                            Alignment.TopStart -> {
+                                anchorX = l + w; anchorY = t + h
+                                rawW = w - dxImg; rawH = h - dyImg
+                            }
+                            Alignment.TopEnd -> {
+                                anchorX = l; anchorY = t + h
+                                rawW = w + dxImg; rawH = h - dyImg
+                            }
+                            Alignment.BottomStart -> {
+                                anchorX = l + w; anchorY = t
+                                rawW = w - dxImg; rawH = h + dyImg
+                            }
+                            else -> {
+                                anchorX = l; anchorY = t
+                                rawW = w + dxImg; rawH = h + dyImg
+                            }
+                        }
+                        nw = min(rawW, (rawH * ratio).roundToInt()).coerceAtLeast(1)
+                        nh = (nw / ratio).roundToInt().coerceAtLeast(1)
+                        when (alignment) {
+                            Alignment.TopStart -> { nl = anchorX - nw; nt = anchorY - nh }
+                            Alignment.TopEnd -> { nl = anchorX; nt = anchorY - nh }
+                            Alignment.BottomStart -> { nl = anchorX - nw; nt = anchorY }
+                            else -> { nl = anchorX; nt = anchorY }
+                        }
+                    } else {
+                        when (alignment) {
+                            Alignment.TopStart -> { nl += dxImg; nw -= dxImg; nt += dyImg; nh -= dyImg }
+                            Alignment.TopEnd -> { nw += dxImg; nt += dyImg; nh -= dyImg }
+                            Alignment.BottomStart -> { nl += dxImg; nw -= dxImg; nh += dyImg }
+                            else -> { nw += dxImg; nh += dyImg }
+                        }
                     }
-                    nw = nw.coerceAtLeast(MIN_CROP_SIZE)
-                    nh = nh.coerceAtLeast(MIN_CROP_SIZE)
+
+                    nw = nw.coerceAtLeast(CROP_MIN_SIZE)
+                    nh = nh.coerceAtLeast(CROP_MIN_SIZE)
                     nl = nl.coerceIn(0, (imgW - nw).coerceAtLeast(0))
                     nt = nt.coerceIn(0, (imgH - nh).coerceAtLeast(0))
                     nw = nw.coerceAtMost(imgW - nl)
@@ -388,6 +415,8 @@ private fun executeCrop(
     appState: AppState,
     sourcePath: String?,
     config: CropConfig,
+    imgWidth: Int?,
+    imgHeight: Int?,
     scope: CoroutineScope,
 ) {
     val strings = AppStrings(appState.language.value)
@@ -395,7 +424,7 @@ private fun executeCrop(
         appState.setTaskStatus(TaskStatus.Failed(strings.selectSourceFirst))
         return
     }
-    val error = CropCommandBuilder.validate(config, appState.language.value)
+    val error = CropCommandBuilder.validate(config, appState.language.value, imgWidth, imgHeight)
     if (error != null) {
         appState.setTaskStatus(TaskStatus.Failed(error))
         return
