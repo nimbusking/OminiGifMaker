@@ -49,7 +49,10 @@ src/
     │       ├── settings/              # SettingsStore（Preferences 封装）
     │       └── utils/                 # OsUtils（OS/架构检测）
     └── resources/
-        ├── binaries/{windows,macos,linux}/   # 引擎二进制（目前仅 windows 已内嵌）
+        ├── binaries/
+        │   ├── windows/                       # x86_64 平铺（已内嵌，约 250MB）
+        │   ├── macos/{aarch64,x86_64}/        # 待补齐
+        │   └── linux/{aarch64,x86_64}/        # 待补齐
         └── icons/                             # 应用图标（.ico/.icns/.png）
 ```
 
@@ -77,8 +80,8 @@ src/
 
 ### 引擎调用与进程调度
 
-1. 启动时 `EngineExtractor` 检测宿主 OS，按 `binaries/<os>/manifest.txt` 从 classpath 流式释放整个 bundle（可执行文件 + 依赖 DLL/配置文件）到 `java.io.tmpdir/gif_app_engines/`，非 Windows 平台赋予可执行权限。
-2. `ProcessRunner` 在 `Dispatchers.IO` 中执行 `ProcessBuilder`，以 `List<String>` 传参防注入，并**并发**读取 stdout/stderr 防止缓冲区满导致死锁。
+1. 启动时 `EngineExtractor` 检测宿主 OS 与 CPU 架构，优先按 `binaries/<os>/<arch>/manifest.txt`（无架构子目录时回退到 `binaries/<os>/manifest.txt`）从 classpath 流式释放整个 bundle（可执行文件 + 依赖动态库/配置文件）到 `java.io.tmpdir/gif_app_engines/`，非 Windows 平台赋予可执行权限。
+2. `ProcessRunner` 在 `Dispatchers.IO` 中执行 `ProcessBuilder`，以 `List<String>` 传参防注入，并**并发**读取 stdout/stderr 防止缓冲区满导致死锁；macOS/Linux 额外注入 `DYLD_LIBRARY_PATH`/`LD_LIBRARY_PATH` 指向解压目录，使 libvips 等动态链接引擎找到其依赖库。
 3. 元数据统一由 `GifMetaDataReader` 调用 ffprobe（`-print_format json`）解析。
 
 ### 设置持久化
@@ -97,6 +100,26 @@ src/
 | libvips | 8.18.5 | 高性能图像处理（Frames 转换） | LGPL-2.1 |
 
 各引擎均以独立子进程调用，与主程序仅通过命令行与标准流交互，属 GPL 语境下的「聚合分发」，不传染主程序代码。详见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 与 `third_party/`。
+
+## 各平台引擎二进制
+
+代码层面（OS/架构探测、可执行权限、动态库路径注入）已跨平台就绪；下表为三平台补齐二进制时的组件与来源建议，静态构建优先以减少动态依赖。
+
+| 引擎 | Windows（已内嵌） | macOS 来源 | Linux 来源 | 许可证 |
+| --- | --- | --- | --- | --- |
+| FFmpeg + ffprobe | gyan.dev GPL 静态 | evermeet.cx 静态（需含 `drawtext`/libfreetype） | johnvansickle GPL 静态 | GPL v3 |
+| Gifsicle | eternallybored.org win64 | Homebrew / 源码静态编译 | 发行版包 / 源码静态编译 | GPL-2.0 |
+| ImageMagick 7 `magick` | portable Q16 静态 | 官网 portable static / 源码静态编译 | 官网 static / 源码静态编译 | ImageMagick License |
+| gifski | npm `gifski` 包 CLI | 官方 release CLI / `cargo install` | `cargo install` / release musl | AGPL-3.0 |
+| libvips `vips` | build-win64-mxe（带 DLL） | Homebrew / MacPorts（动态链 dylib） | `libvips-tools`（动态链 .so） | LGPL-2.1 |
+
+说明：
+
+- **架构**：macOS（arm64 / x86_64）与 Linux（aarch64 / x86_64）二进制互不通用，需按 `binaries/<os>/<arch>/` 分子目录（macOS 亦可改用 universal2 二进制）。
+- **动态依赖**：Windows 靠可执行文件同目录的 DLL 即可；macOS/Linux 默认不搜索可执行文件所在目录，动态链接引擎（libvips、非静态 ImageMagick）依赖 `ProcessRunner` 注入的 `DYLD_LIBRARY_PATH` / `LD_LIBRARY_PATH` 加载。libvips 保持共享库形态（LGPL 要求可替换）。
+- **FFmpeg**：务必选用含 `drawtext` 滤镜与 libfreetype 的构建，否则 Reverse「计时器叠加」在 mac/Linux 静默失效。
+- **gifski**：AGPL-3.0 要求最严，分发需随附对应版本源码 tag。
+- 补齐二进制后执行 `ls -1 | grep -v '^manifest.txt$' | sort > manifest.txt` 生成清单，并同步更新 `THIRD_PARTY_NOTICES.md`。
 
 ## 功能模块
 
@@ -146,7 +169,7 @@ src/
 
 ## 已知限制 / 说明
 
-- 目前仅 **Windows** 平台已内嵌引擎二进制（`binaries/windows/` 约 250MB），`macos/`、`linux/` 目录为空占位，需按平台补齐二进制并更新 `manifest.txt`。
+- 引擎调用链路（OS/架构探测、动态库路径注入、可执行权限）已跨平台就绪；但目前仅 **Windows** 平台已内嵌引擎二进制（`binaries/windows/` 约 250MB），`macos/`、`linux/` 目录为空占位，需按「各平台引擎二进制」表补齐二进制并生成 `manifest.txt` 后方可打包 `.dmg` / `.deb`。
 - gifski 的 Windows CLI 取自 npm `gifski` 包（官方仅发布 GUI），版本为 1.7.1。
 - libvips 转换要求帧为 RGBA/灰度（RGB 需先加 alpha 通道）。
 - 两个原生文件选择对话框标题暂未随语言切换。

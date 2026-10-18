@@ -23,7 +23,7 @@ enum class OsType(
     }
 }
 
-/** 归一化 CPU 架构（基于 `os.arch`），供未来按架构分发二进制时使用。 */
+/** 归一化 CPU 架构（基于 `os.arch`），供引擎二进制按架构分发（macOS arm64/x86_64、Linux aarch64/x86_64）。 */
 fun currentArch(): String {
     val arch = System.getProperty("os.arch").lowercase()
     return when {
