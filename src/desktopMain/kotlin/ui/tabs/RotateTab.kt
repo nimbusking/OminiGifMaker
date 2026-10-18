@@ -86,6 +86,7 @@ fun RotateTab(appState: AppState, modifier: Modifier = Modifier) {
                 label = strings.degrees,
                 onValueChange = state::setCustomDegrees,
                 modifier = Modifier.fillMaxWidth(),
+                allowNegative = true,
             )
         }
 

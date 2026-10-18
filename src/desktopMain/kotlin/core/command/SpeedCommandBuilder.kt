@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 /**
  * Speed 模块命令生成。
  *
- * - `% of current speed` → FFmpeg `setpts` 缩放时间戳（配合 fps 保持/复制帧）
+ * - `% of current speed` → FFmpeg `setpts` 缩放时间戳（配合 fps 保持/复制帧，palettegen 保色）
  * - `hundredths of second between frames` → Gifsicle `--delay` 设置绝对延迟
  */
 object SpeedCommandBuilder {
@@ -32,10 +32,12 @@ object SpeedCommandBuilder {
             val factor = v / 100.0
             // 加速时按比例提高输出帧率保持帧数；减速时维持原帧率以复制帧。
             val fps = (sourceFps * factor.coerceAtLeast(1.0)).roundToInt().coerceAtLeast(1)
-            val vf = "setpts=PTS/$factor,fps=$fps"
+            // palettegen/paletteuse 生成专用调色板，避免 FFmpeg 默认调色板导致颜色失真；
+            // -loop 0 保持 GIF 无限循环（重编码后 FFmpeg 不会继承源文件的循环扩展）。
+            val vf = "setpts=PTS/$factor,fps=$fps,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"
             EngineCommand(
                 EngineType.FFMPEG,
-                listOf("-y", "-i", input.absolutePath, "-vf", vf, output.absolutePath),
+                listOf("-y", "-i", input.absolutePath, "-vf", vf, "-loop", "0", output.absolutePath),
             )
         }
     }

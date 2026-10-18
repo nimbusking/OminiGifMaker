@@ -68,7 +68,7 @@ class AppStrings(val lang: Language) {
     val outputFile: String get() = t("输出文件", "Output file")
 
     // ---- 通用 ----
-    val rememberSettings: String get() = t("Remember settings", "Remember settings")
+    val rememberSettings: String get() = t("记住设置", "Remember settings")
 
     // ---- Resize ----
     val resizeTitle: String get() = t("调整大小", "Resize")
@@ -150,12 +150,12 @@ class AppStrings(val lang: Language) {
 
     // ---- Rotate ----
     val rotateTitle: String get() = t("旋转与翻转", "Rotate & Flip")
-    val flip: String get() = t("Flip", "Flip")
-    val flipVertical: String get() = t("Flip vertical", "Flip vertical")
-    val flipHorizontal: String get() = t("Flip horizontal", "Flip horizontal")
-    val rotate: String get() = t("Rotate", "Rotate")
-    val degrees: String get() = t("Degrees", "Degrees")
-    val applyRotation: String get() = t("Apply rotation!", "Apply rotation!")
+    val flip: String get() = t("翻转", "Flip")
+    val flipVertical: String get() = t("垂直翻转", "Flip vertical")
+    val flipHorizontal: String get() = t("水平翻转", "Flip horizontal")
+    val rotate: String get() = t("旋转", "Rotate")
+    val degrees: String get() = t("角度", "Degrees")
+    val applyRotation: String get() = t("应用旋转！", "Apply rotation!")
 
     fun rotateModeLabel(m: RotateMode): String = if (zh) {
         when (m) {
@@ -182,7 +182,7 @@ class AppStrings(val lang: Language) {
     val speedMode: String get() = t("调节模式", "Mode")
     val targetSpeed: String get() = t("目标速度（%，如 200 = 2 倍速）", "Target speed (%, e.g. 200 = 2×)")
     val frameDelay: String get() = t("帧间延迟（1/100 秒）", "Delay between frames (1/100 s)")
-    val changeSpeed: String get() = t("Change speed!", "Change speed!")
+    val changeSpeed: String get() = t("调整速度！", "Change speed!")
 
     fun speedModeLabel(m: SpeedMode): String = if (zh) {
         when (m) {
